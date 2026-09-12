@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environments & Dependencies
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+ENV/
+env/
+node_modules/
+sidecar/whatsapp/node_modules/
+sidecar/whatsapp/auth_info_baileys/
+
+# Sensitive Credentials & Tokens (CRITICAL: Do NOT remove)
+credentials/
+credentials/*
+credentials.json
+client_secret*.json
+token.json
+*.pem
+*.key
+*.cert
+telegram_session.json
+
+# Workspace & Runtime Data
+workspace/*
+!workspace/.gitkeep
+whatsapp_sessions/
+whatsapp_sessions/*
+
+# Logs & OS artifacts
+logs/
+*.log
+.DS_Store
+Thumbs.db
+dist/
+build/
+*.egg-info/
