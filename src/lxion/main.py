@@ -34,28 +34,40 @@ STATIC_DIR = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"🚀 Starting {settings.AGENT_NAME} Core Engine (v0.3.0)...")
-    await init_db()
+    try:
+        await init_db()
+    except Exception as e:
+        logger.error(f"Error during init_db: {e}", exc_info=True)
     
     # Start Cron Engine
-    cron_manager.start()
+    try:
+        cron_manager.start()
+    except Exception as e:
+        logger.error(f"Error starting cron_manager: {e}", exc_info=True)
 
     # Start Telegram Bot if configured (from settings or lxion_core profile)
-    tg_token = settings.TELEGRAM_BOT_TOKEN
-    if not tg_token:
-        p = profile_store.get_profile("lxion_core")
-        if p and p.channel_bindings.get("telegram_token"):
-            tg_token = p.channel_bindings.get("telegram_token")
-            settings.TELEGRAM_BOT_TOKEN = tg_token
-    if tg_token:
-        try:
-            await telegram_gateway.start(tg_token)
-        except Exception as e:
-            logger.warning(f"Could not start Telegram Bot: {e}")
+    try:
+        tg_token = settings.TELEGRAM_BOT_TOKEN
+        if not tg_token:
+            p = profile_store.get_profile("lxion_core")
+            if p and p.channel_bindings.get("telegram_token"):
+                tg_token = p.channel_bindings.get("telegram_token")
+                settings.TELEGRAM_BOT_TOKEN = tg_token
+        if tg_token:
+            try:
+                await telegram_gateway.start(tg_token)
+            except Exception as e:
+                logger.warning(f"Could not start Telegram Bot: {e}")
+    except Exception as e:
+        logger.error(f"Error initializing Telegram bot: {e}", exc_info=True)
 
     yield
 
     # Graceful shutdown
-    cron_manager.stop()
+    try:
+        cron_manager.stop()
+    except Exception:
+        pass
     try:
         await telegram_gateway.stop()
         logger.info("✓ Telegram Bot stopped.")

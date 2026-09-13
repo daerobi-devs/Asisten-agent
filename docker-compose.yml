@@ -39,7 +39,10 @@ services:
         condition: service_started
     environment:
       - POSTGRES_HOST=postgres
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-lxion}:${POSTGRES_PASSWORD:-lxion_secret_2026}@postgres:5432/${POSTGRES_DB:-lxion_db}
+      - POSTGRES_USER=lxion
+      - POSTGRES_PASSWORD=lxion_secret_2026
+      - POSTGRES_DB=lxion_db
+      - DATABASE_URL=postgresql+asyncpg://lxion:lxion_secret_2026@postgres:5432/lxion_db
       - REDIS_HOST=redis
       - REDIS_URL=redis://redis:6379/0
     expose:
