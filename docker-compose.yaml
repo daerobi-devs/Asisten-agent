@@ -27,7 +27,7 @@ services:
       - redis_data:/data
 
   lxion-core:
-    image: lxion-core:v0.3.3
+    image: lxion-core:v0.3.4
     build:
       context: .
       dockerfile: Dockerfile

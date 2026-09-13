@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from lxion.tools.base import BaseTool
 from lxion.companion.coolify_client import coolify_client
 
@@ -54,7 +54,6 @@ class CoolifyManagerTool(BaseTool):
     }
 
     async def execute(self, action: str, app_uuid: Optional[str] = None, **kwargs) -> Any:
-        from typing import Optional
         act = action.strip().lower()
         if act == "list_apps":
             return await coolify_client.list_applications()
