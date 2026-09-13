@@ -111,7 +111,12 @@ class AgentProfileStore:
         return list(self._profiles.values())
 
     def get_profile(self, profile_id: str) -> Optional[AgentProfile]:
-        return self._profiles.get(profile_id)
+        prof = self._profiles.get(profile_id)
+        if prof and prof.id == "lxion_core":
+            soul = self._read_soul_md()
+            if soul:
+                prof.soul_prompt = soul
+        return prof
 
     def save_profile(self, profile: AgentProfile) -> AgentProfile:
         """Create or update an agent profile with security guardrails."""
