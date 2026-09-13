@@ -1,4 +1,4 @@
-﻿FROM python:3.12-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -22,6 +22,8 @@ COPY .agents ./.agents
 
 # Install package in editable mode
 RUN pip install --no-cache-dir -e .
+
+ENV PYTHONPATH=/app/src
 
 EXPOSE 8000
 

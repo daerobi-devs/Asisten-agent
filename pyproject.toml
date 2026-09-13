@@ -18,6 +18,12 @@ dependencies = [
     "httpx",
     "rich",
     "python-dotenv",
+    "apscheduler",
+    "python-telegram-bot",
+    "discord.py",
+    "qrcode",
+    "Pillow",
+    "psutil",
 ]
 
 [project.scripts]
