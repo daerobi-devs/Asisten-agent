@@ -43,8 +43,6 @@ services:
       - REDIS_URL=redis://redis:6379/0
     expose:
       - "8000"
-    ports:
-      - "${API_PORT:-8000}:8000"
     volumes:
       - ./workspace:/app/workspace
       - ./credentials:/app/credentials
