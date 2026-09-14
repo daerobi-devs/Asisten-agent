@@ -44,7 +44,7 @@ services:
       - ./workspace/whatsapp_sessions:/app/workspace/whatsapp_sessions
 
   lxion-core:
-    image: lxion-core:v0.3.5
+    image: lxion-core:v0.3.6
     build:
       context: .
       dockerfile: Dockerfile
@@ -74,8 +74,9 @@ services:
       - ./credentials:/app/credentials
       - ./whatsapp_sessions:/app/whatsapp_sessions
       - ./logs:/app/logs
-      - ./.agents:/app/.agents
+      - agents_data:/app/.agents
 
 volumes:
   postgres_data:
   redis_data:
+  agents_data:
