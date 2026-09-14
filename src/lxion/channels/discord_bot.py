@@ -31,8 +31,8 @@ class DiscordGateway:
 
         @client.event
         async def on_message(message: discord.Message):
-            # Do not reply to self
-            if message.author == client.user:
+            # Do not reply to bots (prevents echo loops)
+            if message.author.bot:
                 return
 
             # Check channel whitelist if configured
@@ -43,30 +43,47 @@ class DiscordGateway:
             if self.allowed_users and message.author.id not in self.allowed_users:
                 return
 
-            # Trigger Discord typing indicator
-            async with message.channel.typing():
-                inbound = InboundMessage(
-                    channel=ChannelType.DISCORD,
-                    sender_id=str(message.author.id),
-                    sender_name=message.author.display_name,
-                    session_id=f"discord_{message.channel.id}",
-                    text=message.content,
-                    metadata={
-                        "channel_id": message.channel.id,
-                        "guild_id": message.guild.id if message.guild else None,
-                        "message_id": message.id
-                    }
+            # Detect missing "Message Content Intent" — common Discord setup mistake
+            if not message.content:
+                logger.warning(
+                    "[Discord] Received empty message.content. "
+                    "Please enable 'MESSAGE CONTENT INTENT' in Discord Developer Portal → Bot → Privileged Gateway Intents."
                 )
+                return
 
-                reply_text = await message_bus.dispatch_inbound(inbound)
+            try:
+                # Trigger Discord typing indicator
+                async with message.channel.typing():
+                    inbound = InboundMessage(
+                        channel=ChannelType.DISCORD,
+                        sender_id=str(message.author.id),
+                        sender_name=message.author.display_name,
+                        session_id=f"discord_{message.channel.id}",
+                        text=message.content,
+                        metadata={
+                            "channel_id": message.channel.id,
+                            "guild_id": message.guild.id if message.guild else None,
+                            "message_id": message.id
+                        }
+                    )
 
-            # Auto-split long messages (Discord has 2000 char limit)
-            max_len = 1900
-            for i in range(0, len(reply_text), max_len):
-                chunk = reply_text[i:i + max_len]
-                await message.channel.send(chunk)
+                    reply_text = await message_bus.dispatch_inbound(inbound)
+
+                # Auto-split long messages (Discord has 2000 char limit)
+                max_len = 1900
+                for i in range(0, len(reply_text), max_len):
+                    chunk = reply_text[i:i + max_len]
+                    await message.channel.send(chunk)
+
+            except Exception as e:
+                logger.error(f"[Discord] Error processing message from {message.author}: {e}")
+                try:
+                    await message.channel.send(f"⚠️ Terjadi kendala: {e}")
+                except Exception:
+                    pass
 
         return client
+
 
     async def start(self, token: Optional[str] = None, allowed_channels: Optional[List[int]] = None):
         """Start the Discord Gateway client."""

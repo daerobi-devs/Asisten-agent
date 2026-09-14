@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     COMPANION_PORT: int = 9099
     COMPANION_AUTH_TOKEN: Optional[str] = None
 
+    # Timezone (used by APScheduler & all scheduled jobs)
+    TIMEZONE: str = "Asia/Jakarta"
+
+    # WhatsApp Baileys sidecar URL
+    WHATSAPP_SIDECAR_URL: str = "http://whatsapp-sidecar:3001"
+
 settings = Settings()
 
 def update_env_file(updates: dict) -> bool:

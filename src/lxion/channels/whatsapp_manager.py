@@ -21,9 +21,10 @@ class WhatsAppConnectionStatus(str, Enum):
 
 class WhatsAppDirectManager:
     """Hermes-style direct WhatsApp Manager integrated with Baileys Multi-Device Sidecar & Self-Chat Guardrail."""
-    def __init__(self, session_dir: Optional[Path] = None, sidecar_url: str = "http://localhost:3001"):
+    def __init__(self, session_dir: Optional[Path] = None, sidecar_url: Optional[str] = None):
         self.session_dir = (session_dir or settings.WORKSPACE_DIR / "whatsapp_sessions").resolve()
-        self.sidecar_url = sidecar_url
+        self.sidecar_url = sidecar_url or settings.WHATSAPP_SIDECAR_URL
+
         self.status = WhatsAppConnectionStatus.DISCONNECTED
         self.mode = WhatsAppMode.SELF_CHAT
         self.trigger_prefix = "!ai"

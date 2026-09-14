@@ -126,13 +126,22 @@ class TelegramGateway:
     async def _handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message or not update.message.text or not update.effective_user or not update.effective_chat:
             return
-        
+
         user = update.effective_user
         chat = update.effective_chat
-        
+
+        # Block messages from bots (prevents echo / self-reply loops)
+        if user.is_bot:
+            return
+
+        # Block if message originated from this bot itself
+        if self.app and self.app.bot and user.id == self.app.bot.id:
+            return
+
         if not self._is_allowed(user.id):
             await update.message.reply_text("⛔ Akses ditolak.")
             return
+
 
         if chat.id not in self.sessions:
             self.sessions[chat.id] = SessionContext(session_id=str(chat.id))

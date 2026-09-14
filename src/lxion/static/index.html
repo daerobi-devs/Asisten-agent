@@ -2474,8 +2474,10 @@
               <td class="p-3 text-zinc-400 font-mono text-[11px]">${j.next_run ? escapeHtml(j.next_run) : 'pending'}</td>
               <td class="p-3 text-right space-x-1">
                 <button onclick="triggerJob('${j.id}')" class="px-2 py-0.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 text-[10px] transition-colors">Trigger Now</button>
+                <button onclick="openEditJobModal(${JSON.stringify(j).replace(/'/g, '&#39;')})" class="px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-[10px] transition-colors">✏️ Edit</button>
                 <button onclick="deleteJob('${j.id}')" class="px-2 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] transition-colors">Delete</button>
               </td>
+
             `;
             tbody.appendChild(tr);
           });
@@ -2611,6 +2613,68 @@
         fetchScheduler();
         showToast(`Job ${jobId} removed`);
       } catch (e) {}
+    }
+
+    function openEditJobModal(job) {
+      // Populate the existing Add Job modal with the current job's values
+      document.getElementById('job-name').value = job.name || '';
+      document.getElementById('job-type').value = job.job_type || 'direct_tool';
+      document.getElementById('job-target').value = job.target || '';
+      document.getElementById('job-schedule-type').value = job.schedule_type || 'daily';
+      document.getElementById('job-schedule-value').value = job.schedule_value || '';
+      document.getElementById('job-channel').value = job.channel || 'none';
+      document.getElementById('job-agent-id').value = job.agent_id || 'lxion_core';
+
+      const modal = document.getElementById('add-job-modal');
+      const title = modal.querySelector('h3');
+      if (title) title.textContent = '✏️ Edit Cron Job';
+
+      const saveBtn = modal.querySelector('button[onclick="saveNewJob()"]');
+      if (saveBtn) {
+        saveBtn.setAttribute('onclick', `saveEditJob('${job.id}')`);
+        saveBtn.textContent = 'Update Job';
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    async function saveEditJob(jobId) {
+      const payload = {
+        name: document.getElementById('job-name').value.trim(),
+        job_type: document.getElementById('job-type').value,
+        target: document.getElementById('job-target').value.trim(),
+        schedule_type: document.getElementById('job-schedule-type').value,
+        schedule_value: document.getElementById('job-schedule-value').value.trim(),
+        channel: document.getElementById('job-channel').value,
+        agent_id: document.getElementById('job-agent-id').value.trim() || 'lxion_core',
+        parameters: {}
+      };
+      try {
+        const res = await fetch(`/api/scheduler/job/${jobId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          showToast('Update failed: ' + (err.detail || 'Unknown error'), 'error');
+          return;
+        }
+        document.getElementById('add-job-modal').classList.add('hidden');
+        fetchScheduler();
+        showToast(`Job "${payload.name}" updated ✅`);
+        // Restore modal to Add mode
+        const modal = document.getElementById('add-job-modal');
+        const title = modal.querySelector('h3');
+        if (title) title.textContent = '📅 Schedule New Job';
+        const saveBtn = modal.querySelector('button[onclick^="saveEditJob"]');
+        if (saveBtn) {
+          saveBtn.setAttribute('onclick', 'saveNewJob()');
+          saveBtn.textContent = 'Save Job';
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+      }
     }
 
     // 5. Companion Remote Exec & Screen

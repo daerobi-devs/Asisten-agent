@@ -61,6 +61,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error initializing Telegram bot: {e}", exc_info=True)
 
+    # Start Discord Bot if configured
+    try:
+        discord_token = settings.DISCORD_BOT_TOKEN
+        if not discord_token:
+            p = profile_store.get_profile("lxion_core")
+            if p and p.channel_bindings.get("discord_token"):
+                discord_token = p.channel_bindings.get("discord_token")
+                settings.DISCORD_BOT_TOKEN = discord_token
+        if discord_token:
+            try:
+                await discord_gateway.start(token=discord_token)
+            except Exception as e:
+                logger.warning(f"Could not start Discord Bot: {e}")
+    except Exception as e:
+        logger.error(f"Error initializing Discord bot: {e}", exc_info=True)
+
     yield
 
     # Graceful shutdown
@@ -532,6 +548,28 @@ async def delete_scheduler_job(job_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Job not found")
     return {"status": "ok", "deleted": job_id}
+
+@app.put("/api/scheduler/job/{job_id}")
+async def update_scheduler_job(job_id: str, req: CreateJobRequest):
+    try:
+        j_type = JobType(req.job_type)
+    except ValueError:
+        j_type = None
+    try:
+        job_info = cron_manager.update_job(
+            job_id=job_id,
+            name=req.name or None,
+            schedule_type=req.schedule_type or None,
+            schedule_value=req.schedule_value or None,
+            job_type=j_type,
+            target=req.target or None,
+            channel=req.channel or None,
+            agent_id=req.agent_id or None,
+            parameters=req.parameters,
+        )
+        return {"status": "ok", "job": job_info}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @app.post("/api/scheduler/trigger/{job_id}")
 async def trigger_scheduler_job(job_id: str):

@@ -4,12 +4,16 @@ import time
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
+from zoneinfo import ZoneInfo
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
 from lxion.core.config import settings
 from lxion.core.logger import logger, AuditLogger
+
+JAKARTA_TZ = ZoneInfo(settings.TIMEZONE)
+
 
 class JobType(str, Enum):
     DIRECT_TOOL = "direct_tool"  # Executes a tool directly WITHOUT invoking AI (0 token cost, deterministic)
@@ -48,7 +52,7 @@ def parse_schedule_trigger(schedule_type: str, schedule_value: str):
         # e.g. "07:00" or "7:00"
         parts = val.split(":")
         if len(parts) >= 2:
-            return CronTrigger(hour=int(parts[0]), minute=int(parts[1]))
+            return CronTrigger(hour=int(parts[0]), minute=int(parts[1]), timezone=JAKARTA_TZ)
         else:
             raise ValueError(f"Invalid daily time format '{val}'. Expected 'HH:MM' (e.g. 07:00)")
 
@@ -69,19 +73,21 @@ def parse_schedule_trigger(schedule_type: str, schedule_value: str):
             d_lower = d.lower()
             clean_days.append(INDONESIAN_DAYS.get(d_lower, d_lower))
         dow_str = ",".join(clean_days)
-        return CronTrigger(day_of_week=dow_str, hour=hour, minute=minute)
+        return CronTrigger(day_of_week=dow_str, hour=hour, minute=minute, timezone=JAKARTA_TZ)
 
     elif st == "date":
         # Specific date time, e.g. "2026-09-15 07:00:00" or "2026-09-15T07:00"
+        from datetime import datetime
         clean_val = val.replace("T", " ")
         if len(clean_val.split(":")) == 2:
             clean_val += ":00"
-        return DateTrigger(run_date=clean_val)
+        run_dt = datetime.strptime(clean_val, "%Y-%m-%d %H:%M:%S").replace(tzinfo=JAKARTA_TZ)
+        return DateTrigger(run_date=run_dt)
 
     elif st == "cron":
         parts = val.split()
         if len(parts) == 5:
-            return CronTrigger.from_crontab(val)
+            return CronTrigger.from_crontab(val, timezone=JAKARTA_TZ)
         else:
             raise ValueError(f"Invalid 5-part cron syntax: '{val}'")
 
@@ -90,9 +96,10 @@ def parse_schedule_trigger(schedule_type: str, schedule_value: str):
             f"Unsupported schedule_type '{schedule_type}'. Use 'interval', 'daily', 'weekly', 'date', or 'cron'."
         )
 
+
 class CronJobManager:
     def __init__(self, persistence_file: Optional[Path] = None):
-        self.scheduler = AsyncIOScheduler()
+        self.scheduler = AsyncIOScheduler(timezone=JAKARTA_TZ)
         self.persistence_file = (persistence_file or settings.WORKSPACE_DIR / "cron_jobs.json").resolve()
         self.job_history: List[Dict[str, Any]] = []
         self._jobs_meta: Dict[str, Dict[str, Any]] = {}
@@ -311,5 +318,52 @@ class CronJobManager:
 
     def get_history(self, limit: int = 20) -> List[Dict[str, Any]]:
         return self.job_history[-limit:]
+
+    def update_job(
+        self,
+        job_id: str,
+        name: Optional[str] = None,
+        schedule_type: Optional[str] = None,
+        schedule_value: Optional[str] = None,
+        job_type: Optional[JobType] = None,
+        target: Optional[str] = None,
+        channel: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Update an existing cron job in-place (remove old, re-add with new params)."""
+        existing = self._jobs_meta.get(job_id)
+        if not existing:
+            raise ValueError(f"Job '{job_id}' not found.")
+
+        # Merge new values over existing
+        new_name = name or existing["name"]
+        new_stype = schedule_type or existing["schedule_type"]
+        new_svalue = schedule_value or existing["schedule_value"]
+        new_jtype = job_type or JobType(existing["job_type"])
+        new_target = target or existing["target"]
+        new_channel = channel or existing["channel"]
+        new_agent = agent_id or existing["agent_id"]
+        new_params = parameters if parameters is not None else existing["parameters"]
+
+        # Remove old job from scheduler
+        try:
+            self.scheduler.remove_job(job_id)
+        except Exception:
+            pass
+
+        # Re-add with same ID and new parameters
+        return self.add_job(
+            job_id=job_id,
+            name=new_name,
+            schedule_type=new_stype,
+            schedule_value=new_svalue,
+            job_type=new_jtype,
+            target=new_target,
+            channel=new_channel,
+            agent_id=new_agent,
+            parameters=new_params,
+            persist=True,
+        )
 
 cron_manager = CronJobManager()
